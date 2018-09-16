@@ -14,9 +14,12 @@
  * the License.
  */
 
-import { Component } from 'preact';
+import preact, { Component } from 'preact';
+import { renderToString } from 'preact-render-to-string';
 import { injectGlobal } from 'emotion';
 import { ThemeProvider } from 'emotion-theming';
+import { extractCritical } from 'emotion-server';
+import template from './template';
 
 import {
   Header,
@@ -32,7 +35,6 @@ import tools from 'src/tools';
 injectGlobal`
   html,
   body {
-    display: block;
     width: 100%;
     padding: 0;
     margin: 0;
@@ -79,7 +81,7 @@ const secondaryTheme = {
   logo: colors.purple
 };
 
-export default class App extends Component {
+class App extends Component {
   onListChange = () => {
     this.setState(
       {
@@ -152,4 +154,11 @@ export default class App extends Component {
       </ThemeProvider>
     );
   }
+}
+
+export default function (params) {
+  const url = params.url || '/';
+  const { html, ids, css } = extractCritical(renderToString(preact.h(App, { url })));
+
+  return template(html, css);
 }
