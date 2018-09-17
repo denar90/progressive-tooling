@@ -16,10 +16,43 @@
 
 import preact, { Component } from 'preact';
 import { renderToString } from 'preact-render-to-string';
-import { injectGlobal } from 'emotion';
+import * as emotion from 'emotion';
 import { ThemeProvider } from 'emotion-theming';
-import { extractCritical } from 'emotion-server';
+// import { extractCritical } from 'emotion-server';
 import template from './template';
+
+var createExtractCritical = function createExtractCritical(emotion) {
+  return function (html) {
+    // parse out ids from html
+    // reconstruct css/rules/cache to pass
+    var RGX = new RegExp(emotion.caches.key + "-([a-zA-Z0-9-]+)", 'gm');
+    var o = {
+      html: html,
+      ids: [],
+      css: ''
+    };
+    var match;
+    var ids = {};
+
+    while ((match = RGX.exec(html)) !== null) {
+      // $FlowFixMe
+      if (ids[match[1]] === undefined) {
+        // $FlowFixMe
+        ids[match[1]] = true;
+      }
+    }
+
+    o.ids = Object.keys(emotion.caches.inserted).filter(function (id) {
+      if ((ids[id] === true || emotion.caches.registered[emotion.caches.key + "-" + id] === undefined) && emotion.caches.inserted[id] !== true) {
+        o.css += emotion.caches.inserted[id];
+        return true;
+      }
+    });
+    return o;
+  };
+};
+
+const extractCritical = createExtractCritical(emotion);
 
 import {
   Header,
@@ -32,7 +65,7 @@ import {
 import { colors } from 'src/core';
 import tools from 'src/tools';
 
-injectGlobal`
+emotion.injectGlobal`
   html,
   body {
     width: 100%;
@@ -105,6 +138,7 @@ class App extends Component {
     super();
 
     if (typeof window !== 'undefined') {
+      emotion.hydrate(window.__EMOTION_CRITICAL_CSS_IDS__);
       this.state = {
         theme: localStorage.getItem('theme') || 'primary',
         horizontalScroll: localStorage.getItem('horizontalScroll')
@@ -159,6 +193,5 @@ class App extends Component {
 export default function (params) {
   const url = params.url || '/';
   const { html, ids, css } = extractCritical(renderToString(preact.h(App, { url })));
-
-  return template(html, css);
+  return template(html, ids, css);
 }
